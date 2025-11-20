@@ -63,9 +63,17 @@ update_version() {
     tar_download_url="https://github.com/imputnet/helium-linux/releases/download/$remote/helium-$remote-x86_64_linux.tar.xz"
   fi
 
-  prefetch_output=$(nix store prefetch-file --hash-type sha256 --json "$tar_download_url")
+  # Try to prefetch files, skip if they don't exist (e.g., 404 errors)
+  if ! prefetch_output=$(nix store prefetch-file --hash-type sha256 --json "$tar_download_url" 2>&1); then
+    echo "Warning: Failed to download $tar_download_url, skipping this update"
+    return
+  fi
   tar_sha256=$(echo "$prefetch_output" | jq -r '.hash')
-  prefetch_output=$(nix store prefetch-file --hash-type sha256 --json "$appimage_download_url")
+
+  if ! prefetch_output=$(nix store prefetch-file --hash-type sha256 --json "$appimage_download_url" 2>&1); then
+    echo "Warning: Failed to download $appimage_download_url, skipping this update"
+    return
+  fi
   appimage_sha256=$(echo "$prefetch_output" | jq -r '.hash')
 
   jq ".[\"$channel\"][\"$arch-$os\"] = {\"version\":\"$remote\",\"tar_url\":\"$tar_download_url\",\"tar_sha256\":\"$tar_sha256\",\"appimage_url\":\"$appimage_download_url\",\"appimage_sha256\":\"$appimage_sha256\"}" <sources.json >sources.json.tmp
