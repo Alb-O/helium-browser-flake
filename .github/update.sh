@@ -12,12 +12,39 @@ fi
 remote_latest=$(curl 'https://api.github.com/repos/imputnet/helium-linux/releases/latest' -s)
 remote_all=$(curl 'https://api.github.com/repos/imputnet/helium-linux/releases' -s)
 
+# Validate API responses
+if echo "$remote_latest" | jq -e '.message' >/dev/null 2>&1; then
+  api_message=$(echo "$remote_latest" | jq -r '.message')
+  echo "Warning: GitHub API returned an error for latest release: $api_message"
+fi
+
+if echo "$remote_all" | jq -e '.message' >/dev/null 2>&1; then
+  api_message=$(echo "$remote_all" | jq -r '.message')
+  echo "Warning: GitHub API returned an error for all releases: $api_message"
+fi
+
 get_tag() {
-  echo "$remote_latest" | jq -r '.tag_name'
+  tag=$(echo "$remote_latest" | jq -r '.tag_name // empty' 2>/dev/null)
+  if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+    echo ""
+  else
+    echo "$tag"
+  fi
 }
 
 get_prerelease_tag() {
-  echo "$remote_all" | jq -r '[.[] | select(.prerelease == true)][0].tag_name'
+  # Check if remote_all is an array
+  if ! echo "$remote_all" | jq -e 'type == "array"' >/dev/null 2>&1; then
+    echo ""
+    return
+  fi
+
+  tag=$(echo "$remote_all" | jq -r '[.[] | select(.prerelease == true)][0].tag_name // empty' 2>/dev/null)
+  if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+    echo ""
+  else
+    echo "$tag"
+  fi
 }
 
 commit_targets=""
@@ -43,6 +70,12 @@ update_version() {
 
   echo "Checking helium ($channel) @ $arch... local=$local remote=$remote"
 
+  # Check if remote version is valid
+  if [ -z "$remote" ] || [ "$remote" = "null" ]; then
+    echo "Warning: Could not fetch remote version from GitHub API, skipping this update"
+    return
+  fi
+
   if [ "$local" = "$remote" ]; then
     echo "Local version is up to date"
     return
@@ -63,7 +96,7 @@ update_version() {
     tar_download_url="https://github.com/imputnet/helium-linux/releases/download/$remote/helium-$remote-x86_64_linux.tar.xz"
   fi
 
-  # Try to prefetch files, skip if they don't exist (e.g., 404 errors)
+  # Try to download and verify the files exist
   if ! prefetch_output=$(nix store prefetch-file --hash-type sha256 --json "$tar_download_url" 2>&1); then
     echo "Warning: Failed to download $tar_download_url, skipping this update"
     return
@@ -92,14 +125,13 @@ update_version() {
 }
 
 main() {
-  set -e
-
-  update_version "stable" "x86_64" "linux"
-  update_version "stable" "aarch64" "linux"
-  update_version "prerelease" "x86_64" "linux"
-  update_version "prerelease" "aarch64" "linux"
-  # update_version "stable" "aarch64" "darwin"
-  # update_version "prerelease" "aarch64" "darwin"
+  # Don't exit on error for update_version calls - they handle errors internally
+  update_version "stable" "x86_64" "linux" || true
+  update_version "stable" "aarch64" "linux" || true
+  update_version "prerelease" "x86_64" "linux" || true
+  update_version "prerelease" "aarch64" "linux" || true
+  # update_version "stable" "aarch64" "darwin" || true
+  # update_version "prerelease" "aarch64" "darwin" || true
 
   if $only_check && $ci; then
     echo "should_update=false" >>"$GITHUB_OUTPUT"
