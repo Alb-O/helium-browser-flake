@@ -49,6 +49,8 @@ get_prerelease_tag() {
 
 commit_targets=""
 commit_version=""
+release_version=""
+release_notes=""
 
 update_version() {
   # "stable" or "prerelease"
@@ -119,6 +121,10 @@ update_version() {
   if [ "$commit_targets" = "" ]; then
     commit_targets="$channel/$arch"
     commit_version="$remote"
+    # Set release version only for stable channel
+    if [ "$channel" = "stable" ]; then
+      release_version="$remote"
+    fi
   else
     commit_targets="$commit_targets && $channel/$arch"
   fi
@@ -146,6 +152,17 @@ main() {
     message="$message helium @ $commit_targets to $commit_version"
 
     echo "commit_message=$message" >>"$GITHUB_OUTPUT"
+
+    if [ -n "$release_version" ]; then
+      echo "release_version=$release_version" >>"$GITHUB_OUTPUT"
+      release_body=$(echo "$remote_latest" | jq -r '.body // ""')
+      release_notes="$release_body
+
+https://github.com/imputnet/helium-linux/releases/tag/$release_version"
+      echo "release_notes<<EOF" >>"$GITHUB_OUTPUT"
+      echo "$release_notes" >>"$GITHUB_OUTPUT"
+      echo "EOF" >>"$GITHUB_OUTPUT"
+    fi
   fi
 }
 
