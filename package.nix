@@ -65,6 +65,7 @@
           alsa-lib
           at-spi2-core
           qt6.qtbase
+          qt6.qtwayland
           vulkan-loader
           libva
           libvdpau
@@ -138,7 +139,9 @@
           cp -rv ./ "$libExecPath/"
 
           makeWrapper "$libExecPath/chrome-wrapper" "$out/bin/${pname}" \
-            --prefix LD_LIBRARY_PATH : "$rpath"
+            --prefix LD_LIBRARY_PATH : "$rpath" \
+            --prefix QT_PLUGIN_PATH : "${pkgs.qt6.qtbase}/${pkgs.qt6.qtbase.qtPluginPrefix}" \
+            --prefix QT_PLUGIN_PATH : "${pkgs.qt6.qtwayland}/${pkgs.qt6.qtbase.qtPluginPrefix}"
 
           runHook postInstall
         '';
