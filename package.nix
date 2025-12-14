@@ -10,6 +10,29 @@
 
     pname = "helium";
 
+    mkDesktopItem = pkgs.makeDesktopItem {
+      name = pname;
+      desktopName = "Helium";
+      genericName = "Web Browser";
+      comment = "Access the Internet";
+      exec = "${pname} %U";
+      icon = pname;
+      terminal = false;
+      categories = ["Network" "WebBrowser"];
+      mimeTypes = [
+        "text/html"
+        "text/xml"
+        "application/xhtml+xml"
+        "application/vnd.mozilla.xul+xml"
+        "x-scheme-handler/http"
+        "x-scheme-handler/https"
+        "x-scheme-handler/about"
+        "x-scheme-handler/unknown"
+      ];
+      startupNotify = true;
+      startupWMClass = "helium";
+    };
+
     mkHeliumAppImage = info:
       pkgs.appimageTools.wrapType2 {
         version = info.version;
@@ -20,10 +43,7 @@
         };
 
         nativeBuildInputs = [pkgs.copyDesktopItems];
-        desktopItems = [
-          (pkgs.makeDesktopItem {
-            })
-        ];
+        desktopItems = [mkDesktopItem];
       };
 
     mkHelium = info:
@@ -142,6 +162,18 @@
             --prefix LD_LIBRARY_PATH : "$rpath" \
             --prefix QT_PLUGIN_PATH : "${pkgs.qt6.qtbase}/${pkgs.qt6.qtbase.qtPluginPrefix}" \
             --prefix QT_PLUGIN_PATH : "${pkgs.qt6.qtwayland}/${pkgs.qt6.qtbase.qtPluginPrefix}"
+
+          # Install desktop file
+          mkdir -p "$out/share/applications"
+          cp "${mkDesktopItem}/share/applications/"*.desktop "$out/share/applications/"
+
+          # Install icon from product_logo
+          for size in 16 24 32 48 64 128 256; do
+            if [ -f "$libExecPath/product_logo_$size.png" ]; then
+              mkdir -p "$out/share/icons/hicolor/''${size}x''${size}/apps"
+              cp "$libExecPath/product_logo_$size.png" "$out/share/icons/hicolor/''${size}x''${size}/apps/${pname}.png"
+            fi
+          done
 
           runHook postInstall
         '';
