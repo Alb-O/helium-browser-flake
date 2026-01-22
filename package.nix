@@ -158,7 +158,7 @@
           mkdir -p "$libExecPath"
           cp -rv ./ "$libExecPath/"
 
-          makeWrapper "$libExecPath/chrome-wrapper" "$out/bin/${pname}" \
+          makeWrapper "$libExecPath/helium-wrapper" "$out/bin/${pname}" \
             --prefix LD_LIBRARY_PATH : "$rpath" \
             --prefix QT_PLUGIN_PATH : "${pkgs.qt6.qtbase}/${pkgs.qt6.qtbase.qtPluginPrefix}" \
             --prefix QT_PLUGIN_PATH : "${pkgs.qt6.qtwayland}/${pkgs.qt6.qtbase.qtPluginPrefix}"
